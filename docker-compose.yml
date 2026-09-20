@@ -59,6 +59,11 @@ services:
       APP_MODE: ${APP_MODE:-development}
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 5000
+      # Inside the container the API must accept connections from the nginx
+      # service, so it binds all interfaces.  It is still unreachable from
+      # outside because the published port is pinned to 127.0.0.1 below and
+      # the database sits on an internal-only network.
+      HOST: 0.0.0.0
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
 
       # Service name on the private network - never the host address.
@@ -110,7 +115,11 @@ services:
     networks:
       - frontend
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      # Bound to loopback by default, for the same reason as the API above:
+      # `docker compose up` on a laptop must not publish the storefront to the
+      # local network.  Set WEB_BIND=0.0.0.0 in .env to reach it from another
+      # machine - and read the deployment section of README.md first.
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3000}:3000"
 
 networks:
   # `internal: true` keeps MySQL off the host and off the internet entirely.

@@ -276,9 +276,14 @@ docker compose up --build
 
 | Service | URL | Notes |
 | --- | --- | --- |
-| Storefront | <http://localhost:3000> | |
+| Storefront | <http://localhost:3000> | Bound to loopback (`WEB_BIND`) |
 | API | <http://localhost:5000/api> | Bound to loopback |
 | MySQL | — | No published port; private network only |
+
+Both published ports default to `127.0.0.1`, so a `docker compose up` on a laptop
+does not put the shop on whatever network that laptop is joined to. Widening
+this is a deliberate act: set `WEB_BIND=0.0.0.0` (or `HOST=0.0.0.0` for the API
+when running it directly) and read [Deployment](#deployment) first.
 
 The first start creates the schema, the application account and the sample
 catalogue automatically — no manual SQL is required. To start over from an empty
@@ -379,6 +384,7 @@ secrets, which are deliberately blank.
 | `APP_MODE` | `development` | `development`, `testing` or `secure`. Selects the implementation set the API uses. |
 | `NODE_ENV` | `development` | Standard Node environment. |
 | `PORT` | `5000` | API port. |
+| `HOST` | `127.0.0.1` | Interface the API binds to. Loopback by default so a local run is not exposed to the surrounding network. Containers set `0.0.0.0`. |
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | Allowed CORS origin. |
 
 ### Database
@@ -669,8 +675,8 @@ ss -ltnp | grep 3306                  # should be empty on the host
 
 | Model | How |
 | --- | --- |
-| **Local machine only** | Bind to loopback: `127.0.0.1:${API_PORT}:5000` (the default) and `127.0.0.1:${WEB_PORT}:3000`. |
-| **Private LAN** | Publish `3000` on the LAN interface, restrict MySQL to the internal network, and place the host behind the office firewall. |
+| **Local machine only** | The default. Both published ports are pinned to loopback: `127.0.0.1:${API_PORT}:5000` and `${WEB_BIND:-127.0.0.1}:${WEB_PORT}:3000`. |
+| **Private LAN** | Set `WEB_BIND=0.0.0.0`, keep MySQL on the internal network, and place the host behind the office firewall. |
 | **VPN** | Keep the Compose ports on loopback and reach the host through WireGuard, Tailscale or an equivalent. Nothing is exposed to the internet. |
 | **IP allow-list** | Terminate TLS at a reverse proxy and allow only known source addresses. |
 | **Authenticated gateway** | Put the stack behind an identity-aware proxy (Cloudflare Access, oauth2-proxy, Tailscale Funnel with SSO) so every visitor authenticates before reaching nginx. |

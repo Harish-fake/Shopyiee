@@ -70,6 +70,18 @@ const config = {
   isProductionLike: NODE_ENV === 'production' || APP_MODE === 'secure',
 
   port: int('PORT', 5000),
+
+  /**
+   * Interface the HTTP listener binds to.
+   *
+   * The default is loopback, so a developer running the API on a laptop does
+   * not silently publish it to the local network (cafe / office / hotel Wi-Fi).
+   * Container and reverse-proxy deployments set HOST=0.0.0.0 explicitly,
+   * because there the reachability boundary is drawn by the Docker network and
+   * the host firewall rather than by the bind address.
+   */
+  host: required('HOST', '127.0.0.1'),
+
   frontendOrigin: required('FRONTEND_ORIGIN', 'http://localhost:3000'),
 
   db: {

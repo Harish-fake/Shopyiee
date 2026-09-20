@@ -35,12 +35,13 @@ async function start() {
     server: database.version,
   });
 
-  server = app.listen(config.port, () => {
+  server = app.listen(config.port, config.host, () => {
     const lines = [
       '',
       '  ShopSphere API',
       `  mode          : ${config.appMode}`,
-      `  listening on  : http://localhost:${config.port}`,
+      `  listening on  : http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`,
+      `  bound to      : ${config.host}${config.host === '0.0.0.0' ? '  (all interfaces)' : '  (loopback only)'}`,
       `  storefront    : ${config.frontendOrigin}`,
       `  database      : ${config.db.database} @ ${config.db.host}:${config.db.port}`,
       `  csrf          : ${config.security.enableCsrf ? (config.isSecureMode ? 'enforced' : 'available') : 'disabled'}`,
