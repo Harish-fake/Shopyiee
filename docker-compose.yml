@@ -1,0 +1,125 @@
+# ===========================================================================
+#  ShopSphere - local / private-network stack
+#
+#      docker compose up --build
+#
+#      storefront  http://localhost:3000
+#      API         http://localhost:5000/api
+#      MySQL       no published port - reachable only from the API container
+#
+#  Values are read from the .env file next to this file (copy .env.example and
+#  fill it in first).  Nothing here publishes MySQL, and the API is bound to
+#  the loopback interface so the stack is not reachable from the LAN.
+# ===========================================================================
+name: shopsphere
+
+services:
+  # -------------------------------------------------------------------------
+  # MySQL - private data store.  Deliberately has no `ports:` block.
+  # -------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: shopsphere-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${DB_NAME:-shopping_store}
+      # Consumed by docker/mysql/init/01-schema-and-seed.sh
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/schema.sql:/opt/shopsphere/schema.sql:ro
+      - ./database/seed.sql:/opt/shopsphere/seed.sql:ro
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+
+  # -------------------------------------------------------------------------
+  # API - Node.js + Express
+  # -------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+    image: shopsphere-api:local
+    container_name: shopsphere-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      APP_MODE: ${APP_MODE:-development}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 5000
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+
+      # Service name on the private network - never the host address.
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-shopping_store}
+      DB_USER: ${DB_USER:-shop_app}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
+
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      SESSION_NAME: ${SESSION_NAME:-shop.sid}
+      SESSION_MAX_AGE_MS: ${SESSION_MAX_AGE_MS:-86400000}
+
+      WALLET_STARTING_BALANCE: ${WALLET_STARTING_BALANCE:-10000.00}
+      ENABLE_CSRF: ${ENABLE_CSRF:-false}
+      ENABLE_RATE_LIMIT: ${ENABLE_RATE_LIMIT:-true}
+
+      # nginx sits in front of the API, so honour X-Forwarded-For.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      HTTP_LOG_FORMAT: ${HTTP_LOG_FORMAT:-combined}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Keep the client-facing message generic; detail stays in the container log.
+      EXPOSE_ERROR_DETAILS: ${EXPOSE_ERROR_DETAILS:-false}
+
+      # Set to true once the stack is served over HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    networks:
+      - backend
+      - frontend
+    ports:
+      # Bound to loopback: the API is not exposed to the local network.
+      - "127.0.0.1:${API_PORT:-5000}:5000"
+
+  # -------------------------------------------------------------------------
+  # Storefront - static React build served by nginx, which also proxies /api
+  # -------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    image: shopsphere-web:local
+    container_name: shopsphere-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - frontend
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+networks:
+  # `internal: true` keeps MySQL off the host and off the internet entirely.
+  backend:
+    driver: bridge
+    internal: true
+  frontend:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    name: shopsphere-mysql-data

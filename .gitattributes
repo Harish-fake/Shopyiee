@@ -1,0 +1,23 @@
+# Normalise line endings so the project behaves the same on Windows, macOS and
+# Linux.  Shell scripts and Dockerfiles must keep LF or they fail inside the
+# container, so they are pinned explicitly.
+* text=auto eol=lf
+
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.conf          text eol=lf
+*.sql           text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# Binary assets
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
