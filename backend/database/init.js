@@ -3,7 +3,9 @@
 /**
  * Database bootstrap.
  *
- *   npm run db:init    apply database/schema.sql and database/seed.sql
+ *   npm run db:init              apply schema.sql, grants.sql and seed.sql
+ *   npm run db:init -- --managed skip grants.sql (the host creates the account)
+ *   npm run db:reset             drop everything and reload the sample data
  *                      (idempotent - a populated database is left alone)
  *   npm run db:reset   drop and recreate every table, then reload the sample
  *                      data set
@@ -30,14 +32,22 @@ const config = require('../config/env');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'database', 'schema.sql');
 const SEED_FILE = path.join(REPO_ROOT, 'database', 'seed.sql');
+const GRANTS_FILE = path.join(REPO_ROOT, 'database', 'grants.sql');
 
-/** The literal that schema.sql ships with for the application account. */
+/** The literal that grants.sql ships with for the application account. */
 const PASSWORD_PLACEHOLDER = "'change_me_app_password'";
 
 const flags = new Set(process.argv.slice(2));
 const reset = flags.has('--reset');
 const schemaOnly = flags.has('--schema-only');
 const seedOnly = flags.has('--seed-only');
+
+/**
+ * Set on hosts where the database account is created by the provider rather
+ * than by us.  Skips database/grants.sql and the ALTER USER that follows it,
+ * both of which a managed MySQL service refuses.  See docs/deployment.md.
+ */
+const managed = flags.has('--managed');
 
 function readSqlFile(file) {
   if (!fs.existsSync(file)) {
@@ -96,31 +106,50 @@ async function main() {
     }
 
     if (applySchema) {
-      log('\n[1/2] applying database/schema.sql');
-      const schemaSql = readSqlFile(SCHEMA_FILE)
+      log('\n[1/3] applying database/schema.sql');
+      await connection.query(readSqlFile(SCHEMA_FILE));
+      log('      tables created');
+    } else {
+      log('\n[1/3] schema already present, skipping');
+    }
+
+    /*
+     * Creating the application account is only possible where we administer the
+     * server.  Managed providers (Aiven, PlanetScale, ...) create the account
+     * for you and reject CREATE USER and GRANT, so `--managed` skips this step
+     * and the ALTER USER below.
+     */
+    if (managed) {
+      log('[2/3] managed host - the provider creates the database account, skipping');
+    } else if (applySchema) {
+      log('[2/3] applying database/grants.sql');
+      const grantsSql = readSqlFile(GRANTS_FILE)
         // Bind the application account to the configured password.
         .split(PASSWORD_PLACEHOLDER)
         .join(sqlEscape(config.db.password));
 
-      await connection.query(schemaSql);
-      log('      tables created, application account configured');
+      await connection.query(grantsSql);
+      log('      application account configured');
     } else {
-      log('\n[1/2] schema already present, skipping');
+      log('[2/3] application account already configured, skipping');
     }
 
     if (applySeed) {
-      log('[2/2] applying database/seed.sql');
+      log('[3/3] applying database/seed.sql');
       await connection.query(readSqlFile(SEED_FILE));
       log('      sample catalogue loaded');
     } else {
-      log('[2/2] sample data already present, skipping');
+      log('[3/3] sample data already present, skipping');
     }
 
-    // Make sure the application account can actually reach the data.
-    await connection.query(
-      `ALTER USER '${config.db.user}'@'%' IDENTIFIED BY ${sqlEscape(config.db.password)}`
-    );
-    await connection.query(`FLUSH PRIVILEGES`);
+    // Make sure the application account can actually reach the data.  Not
+    // permitted on a managed host, where the provider owns the account.
+    if (!managed) {
+      await connection.query(
+        `ALTER USER '${config.db.user}'@'%' IDENTIFIED BY ${sqlEscape(config.db.password)}`
+      );
+      await connection.query(`FLUSH PRIVILEGES`);
+    }
 
     const summary = [];
     for (const table of ['users', 'categories', 'products', 'orders', 'order_items', 'reviews', 'wishlist', 'transactions']) {

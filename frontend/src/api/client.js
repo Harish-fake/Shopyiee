@@ -20,8 +20,27 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Where the API lives.
+ *
+ * Defaults to `/api`, which is correct whenever the storefront and the API
+ * share an origin - docker-compose.yml serves both through nginx, and the dev
+ * server proxies `/api` to the backend.  Keeping it relative is also what makes
+ * the session cookie work without any SameSite gymnastics.
+ *
+ * To point at a separate API origin, set the variable at build time:
+ *
+ *   VITE_API_BASE_URL=https://shopsphere-api.onrender.com/api npm run build
+ *
+ * A genuinely cross-origin API also needs COOKIE_SAMESITE=none on the server;
+ * without it the browser will not attach the session cookie and every visitor
+ * appears signed out.  Prefer a same-origin rewrite where the host supports one
+ * - see docs/deployment.md.
+ */
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL,
   withCredentials: true,
   timeout: 20000,
   headers: { 'Content-Type': 'application/json' },

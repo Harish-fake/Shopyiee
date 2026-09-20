@@ -45,6 +45,71 @@ function int(name, fallback) {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
+/**
+ * Builds the TLS options for the MySQL pool.
+ *
+ * Returns `undefined` when TLS is off, which is what `mysql2` expects for a
+ * plaintext connection.
+ *
+ * Managed providers (Aiven and most hosted MySQL) refuse unencrypted
+ * connections and hand you a CA certificate to verify them with:
+ *
+ *   DB_SSL=true                       encrypt and verify
+ *   DB_SSL_CA=/path/to/ca.pem         verify against this CA (usually required)
+ *   DB_SSL_REJECT_UNAUTHORIZED=false  encrypt but do not verify - see below
+ *
+ * Verification is on by default.  Turning it off still encrypts the connection
+ * but accepts any certificate, which defeats the point: an attacker positioned
+ * between the application and the database could present their own and read
+ * everything.  It is available only for a throwaway environment, and it warns
+ * at start-up so it cannot be left on by accident.
+ */
+function dbSsl() {
+  if (!bool('DB_SSL', false)) return undefined;
+
+  const options = { rejectUnauthorized: bool('DB_SSL_REJECT_UNAUTHORIZED', true) };
+
+  const caPath = process.env.DB_SSL_CA;
+  if (caPath) {
+    const resolved = path.resolve(process.cwd(), caPath);
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`DB_SSL_CA points at a file that does not exist: ${resolved}`);
+    }
+    options.ca = fs.readFileSync(resolved, 'utf8');
+  }
+
+  return options;
+}
+
+/**
+ * Validates the SameSite policy for the session cookie.
+ *
+ * `None` is what a cross-origin deployment needs, but a browser silently
+ * discards a `SameSite=None` cookie that is not also `Secure`.  The symptom is
+ * a sign-in that appears to work and then immediately looks signed out, which
+ * is miserable to diagnose - so the combination is rejected at start-up with an
+ * explanation instead of failing quietly at request time.
+ */
+function cookieSameSite() {
+  const raw = String(required('COOKIE_SAMESITE', 'lax')).toLowerCase();
+  const allowed = ['lax', 'strict', 'none'];
+
+  if (!allowed.includes(raw)) {
+    throw new Error(`COOKIE_SAMESITE must be one of: ${allowed.join(', ')} (got "${raw}")`);
+  }
+
+  if (raw === 'none' && !bool('COOKIE_SECURE', false)) {
+    throw new Error(
+      'COOKIE_SAMESITE=none requires COOKIE_SECURE=true.\n' +
+        '  Browsers discard a SameSite=None cookie that is not also Secure, which\n' +
+        '  would leave every visitor silently signed out.  Set COOKIE_SECURE=true\n' +
+        '  (the site must be served over HTTPS).'
+    );
+  }
+
+  return raw;
+}
+
 const APP_MODE = required('APP_MODE', 'development').toLowerCase();
 const VALID_MODES = ['development', 'testing', 'secure'];
 
@@ -91,6 +156,7 @@ const config = {
     user: required('DB_USER', 'shop_app'),
     password: required('DB_PASSWORD', 'change_me_app_password'),
     connectionLimit: int('DB_CONNECTION_LIMIT', 10),
+    ssl: dbSsl(),
   },
 
   session: {
@@ -106,6 +172,19 @@ const config = {
     // Set COOKIE_SECURE=true whenever the application is reached over HTTPS
     // (behind the TLS terminator described in the deployment guide).
     cookieSecure: bool('COOKIE_SECURE', false),
+    /**
+     * SameSite policy for the session cookie.
+     *
+     *   lax     the default, and correct whenever the storefront and the API
+     *           share an origin (which is how the Docker setup serves them).
+     *   strict  the cookie is withheld even on top-level cross-site navigation,
+     *           so following a link into the shop arrives signed out.
+     *   none    required when the storefront and the API are on different
+     *           registrable domains - for example a static site on one host
+     *           calling an API on another.  Browsers reject `None` without
+     *           `Secure`, so the two are enforced together below.
+     */
+    cookieSameSite: cookieSameSite(),
   },
 
   wallet: {

@@ -32,6 +32,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - ./database/schema.sql:/opt/shopsphere/schema.sql:ro
+      - ./database/grants.sql:/opt/shopsphere/grants.sql:ro
       - ./database/seed.sql:/opt/shopsphere/seed.sql:ro
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     networks:

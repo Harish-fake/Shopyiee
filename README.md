@@ -398,6 +398,9 @@ secrets, which are deliberately blank.
 | `DB_PASSWORD` | — | Required. Also used to create the account. |
 | `DB_ROOT_PASSWORD` | — | Required by Compose. Used only for initialisation. |
 | `DB_CONNECTION_LIMIT` | `10` | Pool size. |
+| `DB_SSL` | `false` | Enable TLS for the database connection. Required by most hosted MySQL. |
+| `DB_SSL_CA` | — | Path to the provider's CA certificate, used to verify the server. |
+| `DB_SSL_REJECT_UNAUTHORIZED` | `true` | Set `false` to encrypt without verifying. Throwaway environments only; the app warns at start-up. |
 | `DB_ADMIN_USER` / `DB_ADMIN_PASSWORD` | `root` / `DB_ROOT_PASSWORD` | Credentials used by `npm run db:init`. |
 
 ### Sessions and security
@@ -408,6 +411,7 @@ secrets, which are deliberately blank.
 | `SESSION_NAME` | `shop.sid` | Session cookie name. |
 | `SESSION_MAX_AGE_MS` | `86400000` | Session lifetime (24 h). |
 | `COOKIE_SECURE` | `false` | Set `true` when served over HTTPS. Also enables HSTS. |
+| `COOKIE_SAMESITE` | `lax` | `lax`, `strict` or `none`. Use `none` only when the storefront and API are on different registrable domains; it requires `COOKIE_SECURE=true` and the app refuses to start otherwise. |
 | `ENABLE_CSRF` | `true` | Synchroniser-token protection for state-changing requests. |
 | `ENABLE_RATE_LIMIT` | `true` | Per-surface request limiting. |
 | `TRUST_PROXY` | `false` | `true` behind nginx or another reverse proxy. |
@@ -666,6 +670,11 @@ ShopSphere is intended for a **private, restricted environment**. It has not
 been hardened for direct exposure to the public internet and should not be
 placed there without the work described below.
 
+For a complete walkthrough — including a free, no-credit-card deployment on
+managed hosting, and a single-VM Docker Compose setup — see
+[`docs/deployment.md`](docs/deployment.md). The sections below summarise the
+choices that matter.
+
 ### Put the database on a private network
 
 `docker-compose.yml` already does this: MySQL has no `ports:` block and sits on
@@ -752,12 +761,19 @@ docker compose up -d --build
 
 ## Further reading
 
+- [`docs/deployment.md`](docs/deployment.md) — step-by-step deployment: a free
+  managed-hosting path with no credit card, a single-VM Docker Compose path,
+  the environment variables that must change for a public deployment, TLS, and a
+  troubleshooting table.
 - [`docs/security-testing.md`](docs/security-testing.md) — developer-facing
   notes on the application's security posture, the implementation pairs in
   `backend/secure/` and `backend/vulnerabilities/`, how `APP_MODE` selects
   between them, and the safety rails around the exercise. **Read this before
   deploying or modifying the authorization, search or checkout code.**
-- [`database/schema.sql`](database/schema.sql) — tables, indexes and grants.
+- [`database/schema.sql`](database/schema.sql) — tables and indexes.
+- [`database/grants.sql`](database/grants.sql) — the application account and its
+  DML-only grants (self-hosted and Docker only; managed hosts create the account
+  for you).
 - [`database/seed.sql`](database/seed.sql) — the fabricated data set.
 - [`scripts/generate-images.mjs`](scripts/generate-images.mjs) — artwork
   generation.

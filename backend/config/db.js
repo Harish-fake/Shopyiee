@@ -21,6 +21,9 @@ const pool = mysql.createPool({
   database: config.db.database,
   user: config.db.user,
   password: config.db.password,
+  // `undefined` means a plaintext connection, which is what a local loopback
+  // instance uses.  Managed providers set DB_SSL=true - see config/env.js.
+  ssl: config.db.ssl,
   waitForConnections: true,
   connectionLimit: config.db.connectionLimit,
   queueLimit: 0,
@@ -32,6 +35,14 @@ const pool = mysql.createPool({
   supportBigNumbers: true,
   bigNumberStrings: false,
 });
+
+if (config.db.ssl && config.db.ssl.rejectUnauthorized === false) {
+  logger.warn(
+    'Database TLS certificate verification is disabled (DB_SSL_REJECT_UNAUTHORIZED=false). ' +
+      'The connection is encrypted but the server is not authenticated - do not use this ' +
+      'outside a throwaway environment.'
+  );
+}
 
 /**
  * Run a query on a pooled connection.

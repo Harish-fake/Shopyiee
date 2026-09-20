@@ -265,12 +265,16 @@ CREATE TABLE `sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
--- Application database account
+-- This file is pure DDL on purpose: it creates the database and its tables and
+-- nothing else, so it can be applied to any MySQL-compatible server, including
+-- managed hosts where creating users and granting privileges is not permitted.
 --
---   The application never connects as root.  The password placeholder below is
---   substituted at container start-up by docker-entrypoint.sh using the
---   DB_PASSWORD environment variable.
+-- The application's own database account is created separately:
+--
+--   self-hosted / Docker : database/grants.sql
+--   managed (Aiven, etc.): the provider creates the account; see
+--                          docs/deployment.md
+--
+-- Sample data lives in database/seed.sql.
 -- ---------------------------------------------------------------------------
-CREATE USER IF NOT EXISTS 'shop_app'@'%' IDENTIFIED BY 'change_me_app_password';
-GRANT SELECT, INSERT, UPDATE, DELETE ON `shopping_store`.* TO 'shop_app'@'%';
-FLUSH PRIVILEGES;
+

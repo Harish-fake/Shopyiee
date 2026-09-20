@@ -104,7 +104,7 @@ app.use(
     rolling: true,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: config.security.cookieSameSite,
       secure: config.security.cookieSecure,
       maxAge: config.session.maxAgeMs,
       path: '/',
