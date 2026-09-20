@@ -227,6 +227,17 @@ Go back to the API service and set `FRONTEND_ORIGIN` to the static site's exact
 URL (including `https://`, no trailing slash). Without it the browser blocks the
 API's responses.
 
+This is the setting most likely to be wrong, because the browser sends the
+**storefront's** origin even though the request is proxied to the API. Get it
+wrong and every sign-in fails. The server refuses the request with a `403` and
+logs both the origin it saw and the one it expected:
+
+```
+Request refused: origin is not in the CORS allow-list
+  origin:  https://shopsphere-web.onrender.com
+  allowed: http://localhost:3000
+```
+
 Then sign in at your static site URL:
 
 ```
@@ -378,7 +389,7 @@ nc -zv <database-host> 3306    # should fail from outside the provider's network
 | `self signed certificate` / `unable to verify` | Missing CA | Download `ca.pem` from the provider and point `DB_SSL_CA` at it |
 | `CREATE USER ... denied` | Running `db:init` against a managed host | Use `npm run db:init:managed` |
 | Reloading `/orders/2` gives 404 | SPA fallback missing | Add the `/*` → `/index.html` rewrite |
-| API returns CORS errors | `FRONTEND_ORIGIN` does not match exactly | Include scheme, no trailing slash |
+| API returns CORS errors, or sign-in fails with a generic error | `FRONTEND_ORIGIN` does not match the browser's `Origin` header | Set it to the storefront's exact URL — scheme included, no trailing slash. The server answers 403 and logs the rejected origin and the allowed one |
 | First request takes ~1 minute | Free instance woke from sleep | Expected on the free tier |
 | `EADDRINUSE` | Port already taken | Change `PORT` / `API_PORT` / `WEB_PORT` |
 | Rate limits trigger for everyone at once | `TRUST_PROXY` off behind a proxy | Set `TRUST_PROXY=1` |

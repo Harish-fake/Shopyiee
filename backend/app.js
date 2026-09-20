@@ -18,6 +18,7 @@ const config = require('./config/env');
 const logger = require('./utils/logger');
 const MysqlSessionStore = require('./database/sessionStore');
 const { attachUser } = require('./middleware/auth');
+const { forbidden } = require('./utils/errors');
 const { apiLimiter } = require('./middleware/rateLimit');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const apiRoutes = require('./routes');
@@ -67,7 +68,26 @@ app.use(
       if (origin === config.frontendOrigin) return callback(null, true);
       // Outside secure mode, accept any origin so that local tooling works.
       if (!config.isSecureMode) return callback(null, true);
-      return callback(new Error('Origin not permitted by the CORS policy'));
+
+      /*
+       * A rejected origin is a configuration mistake, not a server fault, so it
+       * is answered as a deliberate 403 rather than by throwing.  Throwing here
+       * produced a 500 "Something went wrong", which is misleading in two ways:
+       * it tells the operator the application is broken when only
+       * FRONTEND_ORIGIN is wrong, and it fills the error log with what looks
+       * like a crash on every request from the browser.
+       */
+      logger.warn('Request refused: origin is not in the CORS allow-list', {
+        origin,
+        allowed: config.frontendOrigin,
+      });
+
+      return callback(
+        forbidden(
+          'This origin is not allowed to call the API. ' +
+            'Check the FRONTEND_ORIGIN setting on the server.'
+        )
+      );
     },
     credentials: true,
   })
