@@ -620,11 +620,12 @@ npm test              # APP_MODE=development
 npm run test:secure   # APP_MODE=secure
 ```
 
-Both runs execute the same 174 assertions across 12 suites and both are expected
+Both runs execute the same 179 assertions across 13 suites and both are expected
 to pass.
 
 | Suite | Coverage |
 | --- | --- |
+| `routes.test.js` | Every registered route, probed once per role: no 5xx, valid envelope, writes refused without a session |
 | `auth.test.js` | Registration, sign-in, session lifecycle, profile, password change |
 | `products.test.js` | Listing, filtering, sorting, pagination, detail, categories, health |
 | `search.test.js` | Keyword, category, price-band and sort filters on both search endpoints |
@@ -637,6 +638,13 @@ to pass.
 | `admin.test.js` | Dashboard, products, orders, customers, reviews, ledger |
 | `authorization.test.js` | Role enforcement, client-supplied roles ignored, ownership |
 | `security-behaviour.test.js` | Weak-versus-hardened behaviour for each documented finding |
+
+`routes.test.js` is worth calling out: it discovers the route table by walking
+Express's own router stack rather than from a hand-written list, so a new
+endpoint is covered as soon as it is mounted and the suite cannot drift behind
+the code. It then asserts that a customer is refused by every administrator
+route, and that an administrator is never refused for who they are — which is
+what would catch an inverted role check.
 
 **The suites are non-destructive.** They never drop, truncate or delete a row
 they did not create. Every fixture is tagged with a `zztest-` prefix and removed
