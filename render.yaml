@@ -1,0 +1,67 @@
+# Render Blueprint specification for ShopSphere
+# Deploying in Vulnerable Mode (APP_MODE=development)
+services:
+  # ---------------------------------------------------------------------------
+  # Backend API (Docker Web Service)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: shopsphere-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_MODE
+        value: development # Enables intentional vulnerabilities (SQLi, XSS, IDOR, etc.)
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 5000
+      - key: TRUST_PROXY
+        value: "1"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: ENABLE_CSRF
+        value: "false"
+      - key: ENABLE_RATE_LIMIT
+        value: "false"
+      - key: WALLET_STARTING_BALANCE
+        value: "10000.00"
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: DB_HOST
+        sync: false # Set to your MySQL host (e.g. from Aiven)
+      - key: DB_PORT
+        sync: false # Set to your MySQL port
+      - key: DB_NAME
+        value: shopping_store
+      - key: DB_USER
+        sync: false # Set to your MySQL user (e.g. avnadmin)
+      - key: DB_PASSWORD
+        sync: false # Set to your MySQL password
+      - key: FRONTEND_ORIGIN
+        sync: false # Set to your static site URL: https://shopsphere-web.onrender.com
+      - key: SESSION_SECRET
+        generateValue: true
+
+  # ---------------------------------------------------------------------------
+  # Frontend Storefront (Static Site)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: shopsphere-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://shopsphere-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html

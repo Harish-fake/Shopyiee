@@ -14,7 +14,7 @@ const EMPTY_FORM = {
   originalPrice: '',
   stock: '',
   categoryId: '',
-  image: '/images/products/placeholder.svg',
+  image: '/images/products/placeholder.jpg',
   isFeatured: false,
   isActive: true,
 };

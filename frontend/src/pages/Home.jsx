@@ -88,7 +88,7 @@ export default function Home() {
           </div>
 
           <div className="hero__art" aria-hidden="true">
-            <img src="/images/hero.svg" alt="" width="1200" height="520" />
+            <img src="/images/hero.jpg" alt="" width="1200" height="520" />
           </div>
         </div>
       </section>

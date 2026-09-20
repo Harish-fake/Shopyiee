@@ -88,6 +88,7 @@ async function main() {
     port: config.db.port,
     user: adminUser,
     password: adminPassword,
+    ssl: config.db.ssl,
     multipleStatements: true,
     charset: 'utf8mb4_unicode_ci',
   });
