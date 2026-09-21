@@ -105,6 +105,7 @@ In `secure` mode the start-up sequence additionally refuses to run unless
 | `POST` | `/api/reviews` | Stored XSS | `vulnerabilities/vulnerableReview.js` |
 | `GET` | `/api/reviews/product/:productId` | Stored XSS sink | `vulnerabilities/vulnerableReview.js` |
 | `GET` | `/api/admin/users` | Broken admin authorization | `vulnerabilities/vulnerableAuthorization.js` |
+| `POST` | `/api/auth/login` | Authentication bypass (login SQL injection) | `vulnerabilities/vulnerableAuth.js` (dev/testing only) |
 
 `/api/products/search`, `/api/orders/:id`, `/api/checkout`, the review renderer
 and `/api/admin/users` all switch to their hardened implementation automatically
@@ -791,3 +792,52 @@ When adding a new deliberate flaw, keep the project's conventions:
    remediation.
 6. Add assertions for both behaviours to
    `backend/tests/security-behaviour.test.js`.
+
+---
+
+## 16. Finding 8 — Authentication bypass (login SQL injection)
+
+**Route** `POST /api/auth/login`
+**Fields** `email`, `password`
+**Source** `backend/vulnerabilities/vulnerableAuth.js`
+**CWE** CWE-89
+
+### Root cause
+
+The development-mode login concatenates both fields straight into a `SELECT`:
+
+```js
+WHERE email = '${email}' AND password_hash = '${password}' LIMIT 1
+```
+
+A row returned by a manipulated predicate is trusted without a password check
+(the hardened path in `services/authService.js` first `findByEmail()`s and then
+compares the bcrypt hash, and is used as the fallback so ordinary logins keep
+working in the same process).
+
+### Repro payloads
+
+| Field | Payload | Result |
+| --- | --- | --- |
+| `email` | `' OR '1'='1' #` | first user (`admin@shopsphere.test`), any password |
+| `email` | `admin@shopsphere.test' OR '1'='1' #` | the admin account |
+| `email` | `admin@shopsphere.test' #` | the admin account |
+| `password` | `x' OR '1'='1' #` (any valid `email`) | first user, i.e. admin |
+
+`#` comments out the rest of the line, which makes these work even when a
+trim is applied to the input.  `-- ` variants work in raw HTTP requests.
+Malformed payloads (e.g. `email = '`) leak the raw SQL error — the same
+error-based channel as the search endpoint.
+
+### Secure implementation
+
+`services/authService.js` keeps `findByEmail` + `bcrypt.compare`, both
+parameterised, and the same generic error for unknown-account/bad-password.
+Switching `APP_MODE=secure` also restores the strict email validator on the
+route, so payloads are rejected before they reach the query.
+
+### Safety rails
+
+Identical to the search flaw: no stacked statements (`multipleStatements:
+false`) and a destructive-keyword denylist (`drop`, `delete`, `truncate`,
+`update`, `insert`, `alter`, …) applied to both fields.

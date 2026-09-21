@@ -7,6 +7,7 @@ const { validate } = require('../middleware/validate');
 const { loginLimiter, registerLimiter } = require('../middleware/rateLimit');
 const { csrfProtection } = require('../middleware/csrf');
 const { asEmail, asPassword, asSafeText, asString } = require('../utils/validators');
+const config = require('../config/env');
 
 const router = express.Router();
 
@@ -29,7 +30,10 @@ router.post(
   loginLimiter,
   validate({
     body: {
-      email: (value) => asEmail(value),
+      // In development mode the strict email shape is relaxed so that SQLi
+      // payloads reach the vulnerable login (vulnerableAuth.js).  Secure mode
+      // keeps the strict validator.
+      email: (value) => (config.isSecureMode ? asEmail(value) : asString(value, 'email', { min: 1, max: 190 })),
       password: (value) => asString(value, 'password', { min: 1, max: 128 }),
     },
   }),

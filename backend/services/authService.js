@@ -88,6 +88,15 @@ async function register({ name, email, password, phone = null }) {
  * password is wrong, so the endpoint cannot be used to enumerate accounts.
  */
 async function authenticate({ email, password }) {
+  // In development/testing the vulnerable login is consulted first.  When the
+  // interpolated query finds a row (e.g. via  ' OR '1'='1' # ) that row is
+  // returned and the password is accepted as-is.  Otherwise the hardened path
+  // below runs so ordinary demo logins keep working.
+  // See backend/vulnerabilities/vulnerableAuth.js
+  const vulnerable = config.isSecureMode ? null : require('../vulnerabilities/vulnerableAuth');
+  const bypassed = vulnerable ? await vulnerable.vulnerableMatch({ email, password }) : null;
+  if (bypassed) return bypassed;
+
   const row = await findByEmail(email);
 
   if (!row) {
