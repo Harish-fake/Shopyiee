@@ -35,26 +35,32 @@ app.disable('x-powered-by');
 // ---------------------------------------------------------------------------
 // Security headers
 // ---------------------------------------------------------------------------
-app.use(
-  helmet({
-    // The API only ever returns JSON, so a restrictive policy is appropriate.
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'none'"],
-        frameAncestors: ["'none'"],
-        baseUri: ["'none'"],
-        formAction: ["'none'"],
+// The restrictive policy below is documented in docs/security-testing.md.
+// ENABLE_SECURITY_HEADERS=false removes these headers entirely for the
+// deliberately vulnerable sandbox that render.yaml deploys, where an
+// ordinary-looking, header-free API is the point.
+if (config.security.enableSecurityHeaders) {
+  app.use(
+    helmet({
+      // The API only ever returns JSON, so a restrictive policy is appropriate.
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+          formAction: ["'none'"],
+        },
       },
-    },
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    crossOriginEmbedderPolicy: false,
-    referrerPolicy: { policy: 'no-referrer' },
-    // Nothing should ever frame the API.  Helmet defaults to SAMEORIGIN; be
-    // explicit so the legacy header matches the `frame-ancestors` directive.
-    frameguard: { action: 'deny' },
-    hsts: config.security.cookieSecure ? { maxAge: 15552000, includeSubDomains: true } : false,
-  })
-);
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
+      referrerPolicy: { policy: 'no-referrer' },
+      // Nothing should ever frame the API.  Helmet defaults to SAMEORIGIN; be
+      // explicit so the legacy header matches the `frame-ancestors` directive.
+      frameguard: { action: 'deny' },
+      hsts: config.security.cookieSecure ? { maxAge: 15552000, includeSubDomains: true } : false,
+    })
+  );
+}
 
 // ---------------------------------------------------------------------------
 // CORS

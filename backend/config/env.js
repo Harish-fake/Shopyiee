@@ -168,6 +168,13 @@ const config = {
   security: {
     enableCsrf: bool('ENABLE_CSRF', true),
     enableRateLimit: bool('ENABLE_RATE_LIMIT', true),
+    /**
+     * Emit helmet security headers (CSP, X-Frame-Options, Referrer-Policy,
+     * HSTS and friends).  Set ENABLE_SECURITY_HEADERS=false for the
+     * deliberately vulnerable sandbox so a scanner sees an ordinary,
+     * header-free API and stored/reflected XSS payloads execute unhindered.
+     */
+    enableSecurityHeaders: bool('ENABLE_SECURITY_HEADERS', true),
     trustProxy: bool('TRUST_PROXY', false),
     // Set COOKIE_SECURE=true whenever the application is reached over HTTPS
     // (behind the TLS terminator described in the deployment guide).
