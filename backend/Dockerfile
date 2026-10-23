@@ -33,7 +33,8 @@ WORKDIR /app
 # the bundled database.  su-exec: start the API as the unprivileged user.
 RUN apk add --no-cache curl tini mariadb mariadb-client su-exec \
  && mkdir -p /var/lib/shopsphere-mysql /run/mysqld \
- && chown -R mysql:mysql /var/lib/shopsphere-mysql /run/mysqld
+ && chown -R mysql:mysql /var/lib/shopsphere-mysql /run/mysqld \
+ && printf '[mysqld]\nskip-networking=0\nbind-address=127.0.0.1\nport=3306\n' > /etc/my.cnf.d/zz-shopsphere.cnf
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .

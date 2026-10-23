@@ -41,7 +41,7 @@ fi
 echo "[entrypoint] starting MariaDB"
 if command -v mariadbd >/dev/null 2>&1; then MARIADBD=mariadbd; else MARIADBD=mysqld; fi
 "$MARIADBD" --user=mysql --datadir="$DATADIR" --socket="$SOCKET" \
-  --bind-address=127.0.0.1 --port=3306 \
+  --bind-address=127.0.0.1 --port=3306 --skip-networking=0 \
   --innodb-buffer-pool-size=64M --performance-schema=OFF --max-connections=20 \
   --skip-log-bin --key-buffer-size=8M --aria-pagecache-buffer-size=8M \
   --table-open-cache=64 >/tmp/mariadb.log 2>&1 &
@@ -84,7 +84,23 @@ FLUSH PRIVILEGES;
 SQL
 
 # ---------------------------------------------------------------------------
-# 5. Start the API as the unprivileged application user.
+# 5. Wait until the app account can actually reach MariaDB over TCP before
+#    handing over to Node (Alpine ships `skip-networking` in its defaults).
+# ---------------------------------------------------------------------------
+i=0
+until mysql -h127.0.0.1 -P3306 -u"$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+  i=$((i + 1))
+  if [ "$i" -ge 30 ]; then
+    echo "[entrypoint] ERROR: MariaDB is not accepting TCP connections"
+    tail -30 /tmp/mariadb.log || true
+    exit 1
+  fi
+  sleep 1
+done
+echo "[entrypoint] MariaDB TCP ready"
+
+# ---------------------------------------------------------------------------
+# 6. Start the API as the unprivileged application user.
 # ---------------------------------------------------------------------------
 echo "[entrypoint] starting API"
 exec su-exec shopsphere node server.js
