@@ -9,6 +9,10 @@
       "destination": "https://shopyiee.onrender.com/api/:path*"
     },
     {
+      "source": "/users",
+      "destination": "https://shopyiee.onrender.com/users"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

@@ -148,6 +148,12 @@ app.use(attachUser);
 // ---------------------------------------------------------------------------
 app.use('/api', apiLimiter, apiRoutes);
 
+/**
+ * INTENTIONALLY VULNERABLE: root alias for the hardcoded-credentials demo.
+ * Serves GET /users in addition to GET /api/users (routes/userRoutes.js).
+ */
+app.use('/users', require('./routes/userRoutes'));
+
 app.get('/', (_req, res) => {
   res.json({
     success: true,

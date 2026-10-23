@@ -19,6 +19,7 @@ export default function Home() {
   const [featured, setFeatured] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
   const [topRated, setTopRated] = useState([]);
+  const [demoUsers, setDemoUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,6 +42,26 @@ export default function Home() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * INTENTIONALLY VULNERABLE: the storefront calls the unauthenticated
+   * GET /users endpoint and renders the plaintext demo credentials it returns.
+   * This is here to demonstrate sensitive-information exposure.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get('/users')
+      .then((response) => {
+        if (!cancelled) setDemoUsers(response?.data?.users ?? []);
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -195,6 +216,60 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* Exposed credentials endpoint --------------------------------------- */}
+      <section className="container section">
+        <div className="credentials-panel">
+          <header className="section__head">
+            <div>
+              <h2>Exposed credentials endpoint</h2>
+              <p>
+                This deliberately vulnerable build serves plaintext demo passwords from{' '}
+                <a href="/users" target="_blank" rel="noreferrer">
+                  <code>GET /users</code>
+                </a>{' '}
+                with no authentication. Anyone can read working credentials for every account.
+              </p>
+            </div>
+            <a href="/users" target="_blank" rel="noreferrer" className="link-arrow">
+              Open /users →
+            </a>
+          </header>
+
+          {demoUsers.length > 0 ? (
+            <div className="credentials-table-wrap">
+              <table className="credentials-table">
+                <thead>
+                  <tr>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th>Password</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {demoUsers.map((user) => (
+                    <tr key={user.email}>
+                      <td>
+                        <span className={`badge ${user.role === 'ADMIN' ? 'badge--accent' : 'badge--neutral'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td>
+                        <code>{user.email}</code>
+                      </td>
+                      <td>
+                        <code>{user.password}</code>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="credentials-panel__empty">Loading credentials from /users…</p>
+          )}
+        </div>
+      </section>
 
       {/* Wallet callout ------------------------------------------------------ */}
       <section className="container section">

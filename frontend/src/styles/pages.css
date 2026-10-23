@@ -1559,3 +1559,68 @@
     aspect-ratio: 1;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Exposed credentials panel (intentionally vulnerable demo)
+   -------------------------------------------------------------------------- */
+.credentials-panel {
+  border: 1px dashed var(--color-danger);
+  background: var(--color-danger-soft);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.credentials-panel .section__head {
+  margin-bottom: 18px;
+}
+
+.credentials-panel code {
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+
+.credentials-panel__empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.credentials-table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.credentials-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.credentials-table th,
+.credentials-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.credentials-table th {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.credentials-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .credentials-panel {
+    padding: 18px 14px;
+  }
+}

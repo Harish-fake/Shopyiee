@@ -28,6 +28,7 @@ const wishlistRoutes = require('./wishlistRoutes');
 const walletRoutes = require('./walletRoutes');
 const checkoutRoutes = require('./checkoutRoutes');
 const adminRoutes = require('./adminRoutes');
+const userRoutes = require('./userRoutes');
 
 const checkoutController = require('../controllers/checkoutController');
 const { requireAuth } = require('../middleware/auth');
@@ -59,6 +60,12 @@ router.use('/reviews', reviewRoutes);
 router.use('/wishlist', wishlistRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/checkout', checkoutRoutes);
+
+/**
+ * INTENTIONALLY VULNERABLE: hardcoded credentials exposed over HTTP.
+ * See routes/userRoutes.js.  Also mounted at the root as /users in app.js.
+ */
+router.use('/users', userRoutes);
 
 /**
  * Hardened checkout.  Available in every mode so that the parameterised,
